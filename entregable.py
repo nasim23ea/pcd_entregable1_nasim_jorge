@@ -26,37 +26,61 @@ class MiembroDepartamento():
     def __init__(self, miembros = {}): #diccionario que contiene como clave el departamento, y como valor, una lista de personas
         self.miembros = miembros
                                             #cada profesor/investigador está asociado a un único departamento
-        
+     # ES POSIBLE QUE LOS TRY Y EXCEPT SOBREN PERO DEBEMOS TEST PARA COMPROBARLO
     def _añadir_miembro(self, persona):        #solo la universidad tiene acceso a estos métodos
-        if persona.departamento.value is not None:
-            print(f"Esta persona ya es miembro del departamento {persona.departamento.value}")
-            return
-        self.miembros[persona.departamento.value].append(persona)
-        print(f"{persona.nombre} ha sido añadido como miembro del departamento {persona.departamento.value}")
+        try:
+            # Intenta ejecutar este bloque de código
+            if persona.departamento.value is not None:
+                print(f"Esta persona ya es miembro del departamento {persona.departamento.value}")
+                return
+            self.miembros[persona.departamento.value].append(persona)
+            print(f"{persona.nombre} ha sido añadido como miembro del departamento {persona.departamento.value}")
+        except Exception as e:
+            # cualquier excepción
+            print(f"No se pudo añadir a {persona.nombre} como miembro de departamento: {e}")
 
     def _eliminar_miembro(self, persona):
-        lista = self.miembros[persona.departamento.value]
-        for p in lista:
-            if p.dni == persona.dni:
-                lista.remove(p)
-                self.miembros[persona.departamento.value] = lista
-                print(f"{persona.nombre} ha sido eliminado del departamento {persona.departamento.value}")
-                return
-        #No se da el caso de algún trabajador se quede sin departamento. Esta función solo se utiliza cuando eliminamos (despedimos) a un trabajador
-    
+
+        try:
+            lista = self.miembros[persona.departamento.value]
+            for p in lista:  # Iterar sobre una copia para evitar modificar la lista mientras iteras
+                if p.dni == persona.dni:
+                    lista.remove(p)
+                    self.miembros[persona.departamento.value] = lista
+                    print(f"{persona.nombre} ha sido eliminado del departamento {persona.departamento.value}")
+                    return
+        except Exception as e:
+            print(f"Ocurrió un error al intentar eliminar a {persona.nombre}: {e}")
+                    
     def _cambiar_miembro(self, persona, nuevo_departamento):
-        departamento_actual = persona.departamento
-        if departamento_actual is not None:
-            if departamento_actual.value != nuevo_departamento.value:
-                for p in self.miembros[departamento_actual.value]:
-                    if p.dni == persona.dni:
-                        self.miembros[departamento_actual.value] = self.miembros[departamento_actual.value].remove(p)
+            
+        try:
+            departamento_actual = persona.departamento
+            if departamento_actual is not None:
+                if departamento_actual.value != nuevo_departamento.value:
+                    # Intentar remover a la persona del departamento actual y añadirla al nuevo.
+                    removido = False
+                    for p in self.miembros[departamento_actual.value]:
+                        if p.dni == persona.dni:
+                            self.miembros[departamento_actual.value].remove(p)
+                            removido = True
+                            break  # Salir del bucle una vez encontrado y removido.
+                    if removido:
+                        persona.departamento = nuevo_departamento
                         self._añadir_miembro(persona)
-                print(f"{persona.nombre} ha sido trasladado del departamento {departamento_actual} al departamento {nuevo_departamento.value}")
+                        print(f"{persona.nombre} ha sido trasladado del departamento {departamento_actual.value} al departamento {nuevo_departamento.value}")
+                    else:
+                        print(f"No se pudo encontrar a {persona.nombre} en el departamento {departamento_actual.value} para removerlo.")
+                else:
+                    print(f"{persona.nombre} ya pertenece al departamento {nuevo_departamento.value}")
             else:
-                print(f"{persona.nombre} ya pertenece al departamento {nuevo_departamento.value}")
-        else:
-            print(f"{persona.nombre} no es miembro de ningún departamento")
+                print(f"{persona.nombre} no es miembro de ningún departamento") # puede suceder para estudiantes por ejemplo
+        except AttributeError as e:
+            print(f"Error de atributo: {e}")
+        except KeyError as e:
+            print(f"Error de clave: {e}. Verifica que los departamentos existan.")
+        except Exception as e:
+            print(f"Ocurrió un error inesperado: {e}")
 
 
 class Estudiante(Persona): #Todo estudiante está matriculado de alguna asignatura, por lo que es obligatorio pasar un listado de asignaturas matriculadas
@@ -73,7 +97,7 @@ class Estudiante(Persona): #Todo estudiante está matriculado de alguna asignatu
             i.devuelve_datos()
 
 class Investigador(Persona):
-    def __init__(self, nombre, dni, direccion, sexo, area_investigacion, departamento):
+    def __init__(self, nombre, dni, direccion, sexo, area_investigacion, departamento = None):
         Persona().__init__(self, nombre, dni, direccion, sexo)
         self.area_investigacion = area_investigacion
         self.departamento = departamento
@@ -150,11 +174,14 @@ class Universidad:
         self.estudiantes.append(Estudiante(nombre, dni, direccion, sexo, asignaturas_matriculadas))
 
     def eliminar_estudiante(self, dni):
-        for p in self.estudiantes:
-            if p.dni == dni:
-                self.estudiantes.remove(p)
-                return
-        return "Estudiante no encontrado"
+        try:
+            for p in self.estudiantes:
+                if p.dni == dni:
+                    self.estudiantes.remove(p)
+                    return "Estudiante eliminado correctamente."
+            return "Estudiante no encontrado."
+        except Exception as e: # excepcion informada
+            return f"Error inesperado: {e}"
 
     def contratar_profesor_asociado(self, nombre, dni, direccion, sexo, departamento, asignaturas):
         profesor_asociado = ProfesorAsociado(nombre, dni, direccion, sexo, departamento, asignaturas)
@@ -172,35 +199,58 @@ class Universidad:
         self.miembros_departamento._añadir_miembro(investigador)
 
     def despedir_profesor(self, dni):
-        for lista in self.profesores.values():
-            for p in lista:
-                if p.dni == dni:
-                    lista.remove(p)
-                    self.miembros_departamento._eliminar_miembro(p) #al eliminar un profesor, se elimina como miembro de su departamento
-                    return
-        return "Profesor no encontrado"
+        try:
+            for lista in self.profesores.values():
+                for p in lista:
+                    if p.dni == dni:
+                        lista.remove(p)
+                        self.miembros_departamento._eliminar_miembro(p) #al eliminar un profesor, se elimina como miembro de su departamento
+                        return
+            return "Profesor no encontrado" ##############
+        except Exception as e: # excepcion informada
+            return f"Error inesperado: {e}"
     
     def despedir_investigador(self, dni):
-        for p in self.investigadores:
-            if p.dni == dni:
-                self.investigadores.remove(p)
-        return "Profesor no encontrado"
-
+        try:
+            for p in self.investigadores:
+                if p.dni == dni:
+                    self.investigadores.remove(p)
+            return "Profesor no encontrado" ###################
+        except Exception as e: # excepcion informada
+            return f"Error inesperado: {e}"
+        
     def asignar_profesor_asignatura(self, profesor, *asignaturas):
         for asignatura in asignaturas:
-            if asignatura in self.asignaturas:
-                asignatura._añadir_docente(profesor)
-                profesor._añadir_asignatura(asignatura)
-            else:
-                print(f"Asignatura {asignatura.nombre} no está disponible")
+            try:
+                # Verifica si la asignatura está disponible
+                if asignatura in self.asignaturas:
+                    # Intenta añadir el docente a la asignatura y viceversa
+                    asignatura._añadir_docente(profesor)
+                    profesor._añadir_asignatura(asignatura)
+                else:
+                    # Si la asignatura no está disponible, levantar una excepción
+                    raise ValueError(f"Asignatura {asignatura.nombre} no está disponible")
+            except ValueError as v:
+                # Maneja el caso de asignaturas no disponibles
+                print(v)
+            except Exception as e:
+                # Captura cualquier otra excepción inesperada
+                print(f"Error inesperado al asignar {asignatura.nombre} a {profesor.nombre}: {e}")
+
 
     def eliminar_profesor_asignatura(self, profesor, *asignaturas):
         for asignatura in asignaturas:
-            if asignatura in self.asignaturas:
+            try:
+                # Verificamos si la asignatura está en la lista de asignaturas disponibles.
+                if asignatura not in self.asignaturas:
+                    raise ValueError(f"Asignatura {asignatura.nombre} no está disponible")
+                
+                # Intentamos eliminar el docente de la asignatura y viceversa.
                 asignatura._eliminar_docente(profesor)
                 profesor._eliminar_asignatura(asignatura)
-            else:
-                print(f"Asignatura {asignatura.nombre} no está disponible")
+            except Exception as e:
+                print(f"Error inesperado al modificar asignaturas para {profesor.nombre}: {e}")
+
 
     def get_datos_universidad(self):
         cont = 0
@@ -214,12 +264,23 @@ class Universidad:
             'n_investigadores':len(self.investigadores)
         }
 
-    def eliminar_estudiante_asignatura(self, estudiante, *asignaturas):
-        for asignatura in asignaturas:
-            if asignatura in estudiante.asignaturas_matriculadas:
-                estudiante.asignaturas_matriculadas.remove(asignatura)
-            else:
-                print(f"El estudiante no se encuentra matriculado de la asignatura {asignatura.nombre}")
+    def desmatricular_asignaturas(estudiante, *asignaturas):
+        asignaturas_desmatriculadas = []
+        asignaturas_no_encontradas = []
+        try:
+            for asignatura in asignaturas:
+                if asignatura in estudiante.asignaturas_matriculadas:
+                    estudiante.asignaturas_matriculadas.remove(asignatura)
+                    asignaturas_desmatriculadas.append(asignatura.nombre)
+                else:
+                    asignaturas_no_encontradas.append(asignatura.nombre)
+            
+            if asignaturas_desmatriculadas:
+                print(f"Se han desmatriculado las siguientes asignaturas: {', '.join(asignaturas_desmatriculadas)}.")
+            if asignaturas_no_encontradas:
+                print(f"El estudiante no se encuentra matriculado de las siguientes asignaturas: {', '.join(asignaturas_no_encontradas)}.")
+        except Exception as e: # Mantener la captura genérica si no se anticipan errores específicos
+            print(f"Error inesperado: {e}")
 
     def agregar_miembro_departamento(self, persona, departamento): #agregar una persona a un departamento no tendria sentido
         self.miembros_departamento.añadir_miembro(persona, departamento)         #ya que los miembros (profesores, investigadores...) se añaden automaticamente
