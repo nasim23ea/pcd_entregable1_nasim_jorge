@@ -1,6 +1,7 @@
 from enum import Enum
 from abc import ABCMeta, abstractmethod
 
+# enumeraciones
 class Departamento(Enum):
     DIIC = 1
     DITEC = 2
@@ -10,8 +11,28 @@ class Sexo(Enum):
     HOMBRE = 1
     MUJER = 2
 
-class Persona(metaclass= ABCMeta):
-    def __init__(self, nombre, dni, direccion, sexo):
+# excepciones personalizadas
+
+# MiembroDepartamento
+class MiembroExists(Exception):
+    pass
+
+class MiembroNotExists(Exception):
+    pass
+
+# Estudiante
+
+
+# ProfesorAsociado
+
+
+# Profesor Titular
+
+# Asignatura
+
+
+class Persona(metaclass=ABCMeta):
+    def __init__(self, nombre, dni, direccion, sexo :  Sexo):
         self.nombre = nombre
         self.dni = dni
         self.direccion = direccion
@@ -21,86 +42,180 @@ class Persona(metaclass= ABCMeta):
     def devuelve_datos(self):
         pass
 
+class Profesor(Persona, metaclass = ABCMeta):
+    def __init__(self, nombre, dni, direccion, sexo :  Sexo, departamento : Departamento, asignaturas):
+        super().__init__(nombre, dni, direccion, sexo) 
+        self.departamento = departamento
+        self.asignaturas = asignaturas
 
-class MiembroDepartamento():
+    @abstractmethod
+    def devuelve_datos(self):
+        pass
+
+    @abstractmethod
+    def _añadir_asignatura(self, asignatura):
+        pass
+
+    @abstractmethod   
+    def _eliminar_asignatura(self, asignatura):
+        pass
+
+    @abstractmethod
+    def devuelve_asignaturas(self):
+        pass
+
+
+class MiembroDepartamento(): 
     def __init__(self, miembros = {}): #diccionario que contiene como clave el departamento, y como valor, una lista de personas
         self.miembros = miembros
                                             #cada profesor/investigador está asociado a un único departamento
-        
+
     def _añadir_miembro(self, persona):        #solo la universidad tiene acceso a estos métodos
-        if persona.departamento.value is not None:
-            print(f"Esta persona ya es miembro del departamento {persona.departamento.value}")
-            return
-        self.miembros[persona.departamento.value].append(persona)
-        print(f"{persona.nombre} ha sido añadido como miembro del departamento {persona.departamento.value}")
+        try:
+            for m in self.miembros[persona.departamento.value]:
+                if persona.dni == m.dni:
+                    print(f"{persona.nombre} ya es miembro del departamento {persona.departamento.name}")
+                    return
+            self.miembros[persona.departamento.value].append(persona)
+            print(f"{persona.nombre} ha sido añadido como miembro del departamento {persona.departamento.name}")
+            
+        except Exception as e:
+            # cualquier excepción
+            print(f"No se pudo añadir a {persona.nombre} como miembro de departamento: {e}")
 
     def _eliminar_miembro(self, persona):
-        lista = self.miembros[persona.departamento.value]
-        for p in lista:
-            if p.dni == persona.dni:
-                lista.remove(p)
-                self.miembros[persona.departamento.value] = lista
-                print(f"{persona.nombre} ha sido eliminado del departamento {persona.departamento.value}")
-                return
-        #No se da el caso de algún trabajador se quede sin departamento. Esta función solo se utiliza cuando eliminamos (despedimos) a un trabajador
-    
-    def _cambiar_miembro(self, persona, nuevo_departamento):
-        departamento_actual = persona.departamento
-        if departamento_actual is not None:
-            if departamento_actual.value != nuevo_departamento.value:
-                for p in self.miembros[departamento_actual.value]:
-                    if p.dni == persona.dni:
-                        self.miembros[departamento_actual.value] = self.miembros[departamento_actual.value].remove(p)
+
+        try:
+            lista = self.miembros[persona.departamento.value]
+            for p in lista:  # Iterar sobre una copia para evitar modificar la lista mientras iteras
+                if p.dni == persona.dni:
+                    lista.remove(p)
+                    self.miembros[persona.departamento.value] = lista
+                    print(f"{persona.nombre} ha sido eliminado del departamento {persona.departamento.value}")
+                    return
+        except Exception as e:
+            print(f"Ocurrió un error al intentar eliminar a {persona.nombre}: {e}")
+                    
+    def _cambiar_miembro(self, persona, nuevo_departamento : Departamento):
+            
+        try:
+            departamento_actual = persona.departamento
+            if departamento_actual is not None:
+                if departamento_actual.value != nuevo_departamento.value:
+                    # Intentar remover a la persona del departamento actual y añadirla al nuevo.
+                    removido = False
+                    for p in self.miembros[departamento_actual.value]:
+                        if p.dni == persona.dni:
+                            self.miembros[departamento_actual.value].remove(p)
+                            removido = True
+                            break  # Salir del bucle una vez encontrado y removido.
+                    if removido:
+                        persona.departamento = nuevo_departamento
                         self._añadir_miembro(persona)
-                print(f"{persona.nombre} ha sido trasladado del departamento {departamento_actual} al departamento {nuevo_departamento.value}")
+                        print(f"{persona.nombre} ha sido trasladado del departamento {departamento_actual.name} al departamento {nuevo_departamento.name}")
+                    else:
+                        print(f"No se pudo encontrar a {persona.nombre} en el departamento {departamento_actual.name} para removerlo.")
+                else:
+                    print(f"{persona.nombre} ya pertenece al departamento {nuevo_departamento.name}")
             else:
-                print(f"{persona.nombre} ya pertenece al departamento {nuevo_departamento.value}")
-        else:
-            print(f"{persona.nombre} no es miembro de ningún departamento")
+                print(f"{persona.nombre} no es miembro de ningún departamento") # puede suceder para estudiantes por ejemplo
+        except AttributeError as e:
+            print(f"Error de atributo: {e}")
+        except KeyError as e:
+            print(f"Error de clave: {e}. Verifica que los departamentos existan.")
+        except Exception as e:
+            print(f"Ocurrió un error inesperado: {e}")
 
 
 class Estudiante(Persona): #Todo estudiante está matriculado de alguna asignatura, por lo que es obligatorio pasar un listado de asignaturas matriculadas
-    def __init__(self, nombre, dni, direccion, sexo : Sexo, asignaturas_matriculadas):
-        Persona().__init__(nombre, dni, direccion, sexo)
+    def __init__(self, nombre, dni, direccion, sexo : Sexo, asignaturas_matriculadas :  list):
+
+        Persona.__init__(self, nombre, dni, direccion, sexo)
         self.asignaturas_matriculadas = asignaturas_matriculadas
 
     def devuelve_datos(self):
-        return "Estudiante \t"+"Nombre: "+self.nombre+" DNI: "+self.dni+" Direccion: "+self.direccion+" Sexo: "+self.sexo.value
+        return f"Estudiante \tNombre:{self.nombre} \tDNI:{self.dni} \tDireccion:{self.direccion} \tSexo:{self.sexo.name} "
 
+    def _matricular_asignatura(self, asignatura):
+        self.asignaturas_matriculadas.append(asignatura)
+ 
+    def _desmatricular_asignatura(self, asignatura):
+        self.asignaturas_matriculadas.remove(asignatura)
+ 
     def devuelve_asignaturas(self):
-        print(f"El estudiante está matriculado de las siguientes asignaturas")
-        for i in self.asignaturas_matriculadas:
-            i.devuelve_datos()
+            nombres_asignaturas = ', '.join([asignatura.nombre for asignatura in self.asignaturas_matriculadas])
+            return f'\nEl estudiante {self.nombre} está matriculado de las siguientes asignaturas:{nombres_asignaturas}'
+            
 
 class Investigador(Persona):
-    def __init__(self, nombre, dni, direccion, sexo, area_investigacion, departamento):
-        Persona().__init__(self, nombre, dni, direccion, sexo)
-        self.area_investigacion = area_investigacion
-        self.departamento = departamento
+    def __init__(self, nombre, dni, direccion, sexo : Sexo, departamento : Departamento, area_investigacion):
+        try:
+            # comprobamos estos tres métodos ya que el dni es muy significativo y los otros dos pertenecen a una clase (enumeración)
+            if not isinstance(dni, str):
+                raise TypeError('dni debe ser una cadena de texto')
+            if not isinstance(sexo, Sexo):
+                raise TypeError(f'sexo debe ser una instancia de la clase Sexo; {sexo} es inválido')
+            if not isinstance(departamento, Departamento):
+                raise TypeError(f'departamento debe ser una instancia de la clase Departamento; {departamento} es inválido')
+                
+            super().__init__(nombre, dni, direccion, sexo)
+            self.area_investigacion = area_investigacion
+            self.departamento = departamento
+        except TypeError as t:
+            print(f"Tipo de dato incorrecto: Asegure que {t}")
 
     def devuelve_datos(self):
-        return "Investigador \t"+"Nombre: "+self.nombre+" DNI: "+self.dni+" Direccion: "+self.direccion+" Sexo: "+self.sexo.value+" Area de investigación: "+self.area_investigacion+" Departamento :"+self.departamento.value
+        return f"Investigador \tNombre:{self.nombre} \tDNI:{self.dni} \tDireccion:{self.direccion} \tSexo:{self.sexo.name} \tÁreas de Investigacion:{', '.join([area for area in self.area_investigacion])} \tDepartamento:{self.departamento.name}"
 
-class ProfesorAsociado(Persona): #Todo profesor asociado imparte alguna asignatura, por lo que es obligatorio pasar un listado de asignaturas impartidas
-    def __init__(self, nombre, dni, direccion, sexo, departamento, asignaturas):
-        Persona().__init__(nombre, dni, direccion, sexo)
-        self.asignaturas = asignaturas
-        self.departamento = departamento #Todo profesor está asociado a un departamento, por lo que es obligatorio pasarlo al constructor
+          
+class ProfesorAsociado(Profesor):
+    def __init__(self, nombre, dni, direccion, sexo, departamento : Departamento, asignaturas : list):
+        try:
+            if not isinstance(dni, str):
+                raise TypeError('dni debe ser una cadena de texto')
+            if not isinstance(sexo, Sexo):
+                raise TypeError(f'sexo debe ser una instancia de la clase Sexo; {sexo} es inválido')
+            if not isinstance(departamento, Departamento):
+                raise TypeError(f'departamento debe ser una instancia de la clase Departamento; {departamento} es inválido')
+            super().__init__(nombre, dni, direccion, sexo, departamento, asignaturas) #ojo sin super no funciona
+        except TypeError as t:
+            print(f"Tipo de dato incorrecto: Asegúrese de que {t}")
+
+
+    def _añadir_asignatura(self, asignatura):
+        self.asignaturas.append(asignatura)
+        
+    def _eliminar_asignatura(self, asignatura):
+        if asignatura in self.asignaturas:
+            self.asignaturas.remove(asignatura) 
 
     def devuelve_datos(self):
-        return "Profesor asociadio \t"+"Nombre: "+self.nombre+" DNI: "+self.dni+" Direccion: "+self.direccion+" Sexo: "+self.sexo.value+" Departamento :"+self.departamento.value
+        return f"Profesor Asociado \tNombre:{self.nombre} \tDNI:{self.dni} \tDireccion:{self.direccion} \tSexo:{self.sexo.name} \tDepartamento:{self.departamento.name} \tAsignaturas:{', '.join([asignatura.nombre for asignatura in self.asignaturas])}"
 
     def devuelve_asignaturas(self):
-        print(f"El profesor imparte las siguientes asignaturas")
+        print(f"El profesor imparte las siguientes asignaturas {self.asignaturas}") # porq self se aplica a investigador?
         for i in self.asignaturas:
             print(i.devuelve_datos())
 
-class ProfesorTitular(Investigador): #Todo profesor titular imparte alguna asignatura, por lo que es obligatorio pasar un listado de asignaturas impartidas
-    def __init__(self, nombre, dni, direccion, sexo, area_investigacion, departamento, asignaturas): #Todo profesor titular pertenece a un area de investigacion
-        Investigador().__init__(nombre, dni, direccion, sexo, area_investigacion)
-        self.asignaturas = asignaturas
-        self.departamento = departamento #Todo profesor está asociado a un departamento, por lo que es obligatorio pasarlo al constructor
 
+class ProfesorTitular(Profesor): 
+    def __init__(self, nombre, dni, direccion, sexo, departamento : Departamento, asignaturas : list, area_investigacion):
+        try:
+            if not isinstance(dni, str):
+                raise TypeError('dni debe ser una cadena de texto')
+            if not isinstance(sexo, Sexo):
+                raise TypeError(f'sexo debe ser una instancia de la clase Sexo; {sexo} es inválido')
+            if not isinstance(departamento, Departamento):
+                raise TypeError(f'departamento debe ser una instancia de la clase Departamento; {departamento} es inválido')
+
+            super().__init__(nombre, dni, direccion, sexo, departamento, asignaturas)
+            self.area_investigacion = area_investigacion
+
+
+        except TypeError as t:
+            print(f"Tipo de dato incorrecto: Asegúrese de que {t}")
+
+       
     def _añadir_asignatura(self, asignatura):
         self.asignaturas.append(asignatura)
 
@@ -113,29 +228,48 @@ class ProfesorTitular(Investigador): #Todo profesor titular imparte alguna asign
         for i in self.asignaturas:
             print(i.devuelve_datos())
 
+    def devuelve_datos(self):
+        return f"Profesor Titular \tNombre:{self.nombre} \tDNI:{self.dni} \tDireccion:{self.direccion} \tSexo:{self.sexo.name} \tÁreas de Investigacion:{', '.join([area for area in self.area_investigacion])} \tDepartamento:{self.departamento.name} \tAsignaturas:{', '.join([asignatura.nombre for asignatura in self.asignaturas])}"
+
 class Asignatura:
-    def __init__(self, id, nombre, creditos, modalidad : Departamento):
+    def __init__(self, id,nombre, creditos, modalidad : Departamento):
         self.id = id
         self.nombre = nombre
         self.creditos = creditos
         self.modalidad = modalidad
         self.docentes = []
 
-    def devuelve_datos(self):
+    def devuelve_datos(self):#
         return f"ID: {self.id}, Nombre: {self.nombre}, Créditos: {self.creditos}, Modalidad: {self.modalidad.value}"
     
     def _añadir_docente(self, profesor):
-        self.docentes.append(profesor)
+        # Añade el profesor a la lista de docentes solo si aún no está en la lista
+        if profesor not in self.docentes:
+            self.docentes.append(profesor)
+            print(f'{profesor.nombre} ha sido añadido como docente de {self.nombre}')
+        else:
+            print(f'{profesor.nombre} ya es docente de {self.nombre}')
 
     def _eliminar_docente(self, profesor):
-        if profesor in self.docentes:
+        # Intenta eliminar el profesor de la lista de docentes
+        try:
             self.docentes.remove(profesor)
+            print(f'El profesor {profesor.nombre} ha sido eliminado de la asignatura {self.nombre}')
+        except ValueError:
+            print(f'El profesor {profesor.nombre} no imparte la asignatura {self.nombre}')
+
+    def _eliminar_docente(self, profesor):
+        if profesor in self.docentes: # no me detecta profesor que si estan
+            self.docentes.remove(profesor)
+            print(f'{profesor.nombre} ha sido eliminado como docente de {self.nombre}')
+        else:
+            raise ValueError(f'El profesor {profesor.nombre} no imparte {self.nombre}')
 
 class Universidad:
     def __init__(self, nombre, id, asignaturas, departamentos, areas_investigacion):
         self.nombre = nombre
-        self.id = id
-        self.asignaturas = asignaturas
+        self.id = int(id)
+        self.asignaturas = list(asignaturas)
         self.estudiantes = []
         self.profesores = {"asociados" : [], "titulares" : []} #diccionario de profesores con asociados y titulares
         self.investigadores = []
@@ -146,105 +280,467 @@ class Universidad:
             self.miembros_departamento.miembros[dep.value] = []
 
 
-    def matricular_estudiante(self, nombre, dni, direccion, sexo, asignaturas_matriculadas):
-        self.estudiantes.append(Estudiante(nombre, dni, direccion, sexo, asignaturas_matriculadas))
+    def matricular_estudiante(self, estudiante):
+        try:
+            # Verificar si el estudiante ya está matriculado
+            for e in self.estudiantes:
+                if e.dni == estudiante.dni:
+                    raise ValueError(f'El alumno con dni {estudiante.dni} ya está matriculado')
+            
+            # Proceder con la matriculación si no se ha lanzado ninguna excepción
+            self.estudiantes.append(estudiante)
+            print(f'{estudiante.nombre} ha sido matriculado correctamente')
+
+        except Exception as e:
+            # Capturar y manejar cualquier otra excepción inesperada
+            print(f"Error inesperado al matricular a {estudiante.nombre}: {e}")
 
     def eliminar_estudiante(self, dni):
-        for p in self.estudiantes:
-            if p.dni == dni:
-                self.estudiantes.remove(p)
-                return
-        return "Estudiante no encontrado"
+        try:
+            if not isinstance(dni, str):
+                raise TypeError('El tipo de dato introducido para el DNI no es correcto. Debe ser una cadena de texto')
+            for p in self.estudiantes:
+                if p.dni == dni:
+                    self.estudiantes.remove(p)
+                    print(f"{p.nombre} ha sido eliminado como estudiante correctamente.")
+                    return
+            raise ValueError
+        except ValueError:
+            print(f'El dni {dni} no se encuentra en la base de datos')
+        except Exception as e: # excepcion informada
+            print(f"Error inesperado: {e}")
 
-    def contratar_profesor_asociado(self, nombre, dni, direccion, sexo, departamento, asignaturas):
-        profesor_asociado = ProfesorAsociado(nombre, dni, direccion, sexo, departamento, asignaturas)
-        self.profesores["asociados"].append(profesor_asociado)
-        self.miembros_departamento._añadir_miembro(profesor_asociado)
+    def contratar_profesor_asociado(self, profesor_asociado):#
+        try:
+            # Verifica si el DNI ya pertenece a un profesor titular
+            for p in self.profesores['titulares']:
+                if p.dni == profesor_asociado.dni:
+                    raise ValueError('Un profesor titular no puede ser contratado simultáneamente como profesor asociado')
+            
+            # Verifica si el DNI ya pertenece a un investigador
+            for i in self.investigadores:
+                if i.dni == profesor_asociado.dni:
+                    raise ValueError('Un investigador no puede ser profesor asociado')
+            
+            # Crear y añadir el profesor asociado
 
-    def contratar_profesor_titular(self, nombre, dni, direccion, sexo, area_investigacion, departamento, asignaturas):
-        profesor_titular = ProfesorTitular(nombre, dni, direccion, sexo, area_investigacion, departamento, asignaturas)
-        self.profesores["titulares"].append(profesor_titular)
-        self.miembros_departamento._añadir_miembro(profesor_titular)
+            self.profesores["asociados"].append(profesor_asociado)
+            self.miembros_departamento._añadir_miembro(profesor_asociado)
+            for a in profesor_asociado.asignaturas:
+                a._añadir_docente(profesor_asociado) # deberia funcionar
+        except Exception as e:
+            print(f"Error inesperado al contratar al profesor asociado: {e}")
 
-    def contratar_investigador(self, nombre, dni, direccion, sexo, area_investigacion, departamento):
-        investigador = Investigador(nombre, dni, direccion, sexo, area_investigacion, departamento)
+    def contratar_profesor_titular(self, profesor_titular):#
+        try:
+            # Verifica si el DNI ya pertenece a un profesor titular
+            for p in self.profesores['asociados']:
+                if p.dni == profesor_titular.dni:
+                    raise ValueError('Un profesor titular no puede ser contratado simultáneamente como profesor asociado')
+            
+            self.profesores["titulares"].append(profesor_titular)
+            self.miembros_departamento._añadir_miembro(profesor_titular)
+            for a in profesor_titular.asignaturas:
+                a._añadir_docente(profesor_titular) # deberia funcionar
+
+        except Exception as e:
+            print(f"Error inesperado al contratar al profesor asociado: {e}")
+
+    def contratar_investigador(self, investigador):#
+        for p in self.profesores["asociados"]:
+            if p.dni == investigador.dni:
+                raise Exception('Un profesor asociado no puede ser contratado como investigador')
         self.investigadores.append(investigador)
         self.miembros_departamento._añadir_miembro(investigador)
 
-    def despedir_profesor(self, dni):
-        for lista in self.profesores.values():
-            for p in lista:
-                if p.dni == dni:
-                    lista.remove(p)
-                    self.miembros_departamento._eliminar_miembro(p) #al eliminar un profesor, se elimina como miembro de su departamento
-                    return
-        return "Profesor no encontrado"
+    def despedir_profesor(self, dni):#            
+        try:
+            if not isinstance(dni, str):
+                raise TypeError('El tipo de dato introducido para el DNI no es correcto. Debe ser una cadena de texto')
+            for lista in self.profesores.values():
+                for p in lista:
+                    if p.dni == dni:
+                        lista.remove(p)  # Elimina el profesor de la lista.
+                        self.miembros_departamento._eliminar_miembro(p)  # Elimina el profesor como miembro del departamento.
+                        print(f'{p.nombre} ha sido despedido correctamente.')
+                        return
+                                
+            raise ValueError
+        except ValueError:
+            print(f'El dni {dni} no se encuentra en la base de datos')
+
+        except Exception as e:
+            # Captura cualquier otra excepción inesperada y muestra el mensaje.
+            print(f"Error inesperado: {e}")
     
-    def despedir_investigador(self, dni):
-        for p in self.investigadores:
-            if p.dni == dni:
-                self.investigadores.remove(p)
-        return "Profesor no encontrado"
+    def despedir_investigador(self, dni):#
+        try:
+            if not isinstance(dni, str):
+                raise TypeError('El tipo de dato introducido para el DNI no es correcto. Debe ser una cadena de texto')
+            for p in self.investigadores:
+                if p.dni == dni:
+                    self.investigadores.remove(p)
+                    print(f'{p.nombre} fue despedido correctamente')
+                    return
+            raise ValueError
+        except ValueError:
+            print(f'El dni {dni} no se encuentra en la base de datos')
+        except Exception as e: # excepcion informada
+            print(f"Error inesperado: {e}")
+        
+    def asignar_profesor_asignatura(self, profesor, *asignaturas): #
+        if isinstance(profesor, ProfesorTitular) and not isinstance(profesor, ProfesorAsociado):
+            raise TypeError('No pertenece a la clase ProfesorAsociado o ProfesorTitular')
+        
+        dni_profesores_asociados = [p.dni for p in self.profesores["asociados"]]
+        dni_profesores_titulares = [p.dni for p in self.profesores["titulares"]]
 
-    def asignar_profesor_asignatura(self, profesor, *asignaturas):
+        if profesor.dni not in dni_profesores_asociados and profesor.dni not in dni_profesores_titulares:
+            raise ValueError(f'El profesor con dni {profesor.dni} no se encuentra en la base de datos, compruebe errores tipograficos o agregue previamente al profesor')
         for asignatura in asignaturas:
-            if asignatura in self.asignaturas:
-                asignatura._añadir_docente(profesor)
-                profesor._añadir_asignatura(asignatura)
-            else:
-                print(f"Asignatura {asignatura.nombre} no está disponible")
+            try:
+                if not isinstance(asignatura, Asignatura):
+                    raise TypeError('')
+                # Verifica si la asignatura está disponible
+                if asignatura in self.asignaturas:
+                    if asignatura in profesor.asignaturas: # comprueba que no se asigna una asignatura de la que ya es docente
+                        raise ValueError(f'{profesor.nombre} ya es docente en {asignatura.nombre}')
 
-    def eliminar_profesor_asignatura(self, profesor, *asignaturas):
-        for asignatura in asignaturas:
-            if asignatura in self.asignaturas:
-                asignatura._eliminar_docente(profesor)
-                profesor._eliminar_asignatura(asignatura)
-            else:
-                print(f"Asignatura {asignatura.nombre} no está disponible")
+                    # Intenta añadir el docente a la asignatura y viceversa
+                    asignatura._añadir_docente(profesor)
+                    profesor._añadir_asignatura(asignatura)
+                    print(f'La asignatura {asignatura.nombre} ha sido asignada correctamente a {profesor.nombre}')
+                else:
+                    # Si la asignatura no está disponible, levantar una excepción
+                    raise ValueError(f"Asignatura {asignatura.nombre} no está disponible")
+            except ValueError as v:
+                # Maneja el caso de asignaturas no disponibles
+                print(v)
+            except Exception as e:
+                # Captura cualquier otra excepción inesperada
+                print(f"Error inesperado al asignar {asignatura.nombre} a {profesor.nombre}: {e}")
 
-    def get_datos_universidad(self):
+
+    def eliminar_profesor_asignatura(self, profesor, *asignaturas):#
+            try:
+            
+                if not isinstance(profesor, ProfesorAsociado):
+                    raise TypeError(f'El tipo de dato introducido ({profesor}) para identificar al profesor no es valido. Debe ser una instancia de la clase Asignatura')
+                for asignatura in asignaturas:
+                    # Verificamos si la asignatura está en la lista de asignaturas disponibles.
+                    if not isinstance(asignatura, Asignatura):
+                        raise TypeError(f'El tipo de dato introducido ({asignatura}) no es valido. Debe ser una instancia de la clase Asignatura')
+                    if asignatura not in self.asignaturas:
+                        raise ValueError(f"Asignatura {asignatura.nombre} no está disponible")
+                    
+                    # Intentamos eliminar el docente de la asignatura y viceversa.
+                    asignatura._eliminar_docente(profesor)
+                    profesor._eliminar_asignatura(asignatura)
+                return
+            except Exception as e:
+                print(f"Error inesperado:{e}")
+
+
+    def get_datos_universidad(self):#
         cont = 0
         for i in self.profesores.values():
             cont += len(i)
-        return {
+        datos = {
             'nombre': self.nombre,
             'id': self.id,
             'n_estudiantes': len(self.estudiantes),
             'n_profesores': cont,
             'n_investigadores':len(self.investigadores)
         }
+        print("\nDatos universidad:")
+        for d in datos:
+            print(d, datos[d])
 
-    def eliminar_estudiante_asignatura(self, estudiante, *asignaturas):
-        for asignatura in asignaturas:
-            if asignatura in estudiante.asignaturas_matriculadas:
-                estudiante.asignaturas_matriculadas.remove(asignatura)
-            else:
-                print(f"El estudiante no se encuentra matriculado de la asignatura {asignatura.nombre}")
+    def matricular_asignaturas(estudiante, *asignaturas):
+            asignaturas_matriculadas = []
+            asignaturas_no_encontradas = []
+            try:
+                if not isinstance(asignatura, Asignatura):
+                    raise TypeError('El tipo de dato introducido en el campo asignaturas incorreto. Debe pertenecer a la clase Asignatura')
+                if not isinstance(estudiante, Estudiante):
+                    raise TypeError('El tipo de dato introducido en el campo estudiante incorreto. Debe pertenecer a la clase Estudiante')        
+                for asignatura in asignaturas:
+                    
+                    if asignatura in estudiante.asignaturas_matriculadas: 
+                        estudiante._desmatricular_asignatura(asignatura)
+                        asignaturas_matriculadas.append(asignatura.nombre)
+                    else:
+                        asignaturas_no_encontradas.append(asignatura.nombre)
+                
+                if asignaturas_matriculadas:
+                    print(f"Se han desmatriculado las siguientes asignaturas: {', '.join(asignaturas_matriculadas)}.")
+                if asignaturas_no_encontradas:
+                    print(f"El estudiante no se encuentra matriculado de las siguientes asignaturas: {', '.join(asignaturas_no_encontradas)}.")
+            except Exception as e: # Mantener la captura genérica si no se anticipan errores específicos
+                print(f"Error inesperado: {e}")
 
-    def agregar_miembro_departamento(self, persona, departamento): #agregar una persona a un departamento no tendria sentido
+    def desmatricular_asignaturas(estudiante, *asignaturas):
+        asignaturas_desmatriculadas = []
+        asignaturas_no_encontradas = []
+        try:
+            if not isinstance(asignatura, Asignatura):
+                raise TypeError('El tipo de dato introducido en el campo asignaturas incorreto. Debe pertenecer a la clase Asignatura')
+            if not isinstance(estudiante, Estudiante):
+                raise TypeError('El tipo de dato introducido en el campo estudiante incorreto. Debe pertenecer a la clase Estudiante')        
+            for asignatura in asignaturas:
+                
+                if asignatura in estudiante.asignaturas_matriculadas: 
+                    estudiante._desmatricular_asignatura(asignatura)
+                    asignaturas_desmatriculadas.append(asignatura.nombre)
+                else:
+                    asignaturas_no_encontradas.append(asignatura.nombre)
+            
+            if asignaturas_desmatriculadas:
+                print(f"Se han desmatriculado las siguientes asignaturas: {', '.join(asignaturas_desmatriculadas)}.")
+            if asignaturas_no_encontradas:
+                print(f"El estudiante no se encuentra matriculado de las siguientes asignaturas: {', '.join(asignaturas_no_encontradas)}.")
+        except Exception as e: # Mantener la captura genérica si no se anticipan errores específicos
+            print(f"Error inesperado: {e}")
+
+    def agregar_miembro_departamento(self, persona, departamento):# #agregar una persona a un departamento no tendria sentido
         self.miembros_departamento.añadir_miembro(persona, departamento)         #ya que los miembros (profesores, investigadores...) se añaden automaticamente
                                                       #al crearlos. Lo que si tiene sentido es su modificacion (enunciado)
     
-    def eliminar_miembro_departamento(self, persona, departamento):
+    def eliminar_miembro_departamento(self, persona, departamento):#
         self.miembros_departamento.eliminar_miembro(persona, departamento)
 
-    def cambio_departamento(self, persona, nuevo_departamento):
-        self.miembros_departamento.cambiar_miembro(persona, nuevo_departamento)
+    def cambio_departamento(self, persona, nuevo_departamento):#
+        self.miembros_departamento._cambiar_miembro(persona, nuevo_departamento)
 
-    def get_profesores(self):
-        print("Profesores:")
+    def get_profesores(self):#
+        print("\nProfesores:")
         for profesor in self.profesores["asociados"] + self.profesores["titulares"]:
             print(profesor.devuelve_datos())
 
-    def get_investigadores(self):
-        print("Investigadores:")
+    def get_investigadores(self):#
+        print("\nInvestigadores:")
         for investigador in self.investigadores:
             print(investigador.devuelve_datos())
 
-    def imprimir_alumnos(self):
-        print("Alumnos:")
+    def get_alumnos(self):#
+        print("\nAlumnos:")
         for alumno in self.estudiantes:
             print(alumno.devuelve_datos())
 
+    def asignaturas_alumno(self, dni):#
+        for a in self.estudiantes:
+            if a.dni == dni:
+                print(a.devuelve_asignaturas())
+                return
+        raise Exception(f'El alumno con dni {dni} no se encuentra en la base de datos, revise los datos introducidos')
+    
+    def definir_asignatura(self, id,nombre, creditos, modalidad : Departamento): # 
+            try:
+                for a in self.asignaturas:
+                    if a.id == id: # los id's se asignan de manera automatica
+                        raise ValueError(f'La asignatura {a.nombre} asociada al identificador {a.id} ya estaba registrada previamente')
+                self.asignaturas.append(Asignatura(id,nombre, creditos, modalidad))
+            except Exception as e:
+                print(f"Ocurrio un error inesperado:{e}")
+
+    
+    def eliminar_asignatura(self, id):
+        try:
+            if not isinstance(id, int):
+                raise TypeError('Debe introducir el id (número entero) asociado a la asignatura')
+
+            asignatura_encontrada = None
+            for a in self.asignaturas:
+                if a.id == id:
+                    asignatura_encontrada = a
+                    break
+            
+            if asignatura_encontrada is None:
+                raise ValueError(f"La asignatura con id asociado {id} no figura en la base de datos")
+
+            if len(asignatura_encontrada.docentes) != 0:
+                raise ValueError('Existe algún profesor que imparte la asignatura')
+                    
+            for e in self.estudiantes:
+                if asignatura_encontrada in e.asignaturas_matriculadas:
+                    raise ValueError('Existe algún estudiante que cursa la asignatura')
+
+            self.asignaturas.remove(asignatura_encontrada)
+            print(f"Asignatura con id asociado {id} eliminada correctamente.")
+        except ValueError as ve:
+            print(ve)
+        except Exception as e:
+            print(f"Ocurrió un error inesperado al eliminar la asignatura: {e}")
+    
+
+    def definir_areas_investigacion(self, area):#
+        if area in self.areas_investigacion:
+            print('Este area ya se encuentra en la base de datos')
+        else:
+            self.areas_investigacion.append(area)
+            print(f'{area} ha sido añadido como area de investigación')
+
+    def eliminar_area_investigacion(self, area):#
+        try:
+            self.areas_investigacion.remove(area)
+        except ValueError as e:
+            print(f'{area} no figura en la base de datos')
+        except Exception as e:
+            print(f'No se puedo eliminar {area}, problema asociado: {e}')
+
+    def __del__(self): # como hago un cascade?
+        pass
+
+
+
 # Ejemplo de uso:
 if __name__ == "__main__":
+    #############################################################################################
+    
+    # CREACION
+    # Areas de investigacion
+    areas = [
+    "Aprendizaje automático y análisis predictivo",
+    "Procesamiento del lenguaje natural y análisis de sentimientos",
+    "Visualización de datos y análisis de redes complejas"
+    ]
+
+    # Asignaturas
+    MLI = Asignatura(1,'Machine Learning I', 6, Departamento.DIIC)
+    PCD = Asignatura(2,'Programacion Para Ciencia De Datos', 6, Departamento.DIIC)
+    AEM = Asignatura(3,'Analisis Estadistico Multivariante', 6, Departamento.DIS)
+    BDII = Asignatura(4,'Base de datos II', 6, Departamento.DITEC)
+    SYS = Asignatura(5,'Señales y Sistemas', 6, Departamento.DIS) 
+
+    
+    
+    # Profesores Asociados
+    profesor_asociado1 = ProfesorAsociado('Benito Ubeda', '49445325M', 'C/Angeles, N10',Sexo.HOMBRE, Departamento.DIS, [SYS])
+    profesor_asociado2 = ProfesorAsociado('Raquel Martinez España', '49445731E', 'C/Lorca, N1',Sexo.MUJER, Departamento.DIIC, [MLI, AEM, BDII])
+    profesor_asociado3 = ProfesorAsociado('Antonio Guillen Teruel', '4865421J', 'C/Murcia, N53',Sexo.HOMBRE, Departamento.DITEC, [MLI])
+    profesor_asociado4 = ProfesorAsociado('Daniel Sevilla Ruiz', '44465725S', 'C/Correos, N5',Sexo.HOMBRE, Departamento.DITEC, [BDII])
+    profesor_asociado5 = ProfesorAsociado('Humberto Martinez Barbera', '44465725S', 'C/Apostol, N3',Sexo.HOMBRE, Departamento.DIIC, [PCD])
+    profesor_asociado6 = ProfesorAsociado('Jorge Luis Navarro Camacho', '34361735I', 'C/Lonja, N12',Sexo.HOMBRE, Departamento.DIS, [AEM])
+##comentario: Las areas de investigacion pueden ser más de una, por lo que SIEMPRE tienen que ser una lista (aunque haya solo un área de investigacion)
+
+    # Profeores Titulares
+    profesor_titular1 = ProfesorTitular('Jorge Bernal Bernabe', '54365725H', 'C/Sajon, N31',Sexo.HOMBRE, Departamento.DIIC, [PCD], areas[:2]) 
+    profesor_titular2 = ProfesorTitular('Concepcion Dominguez Sanchez', '43261725F', 'C/Lomega, N21',Sexo.MUJER, Departamento.DIIC, [AEM], areas[1:3])
+
+    # Investigadores
+    investigador1 = Investigador('Jose Perez Ruiz', '23543276P', 'C/Despanto, N12', Sexo.HOMBRE, Departamento.DIS, areas[:1])
+    investigador2 = Investigador('Lucia Sanchez Carril', '53514321T', 'C/Despanto, N12', Sexo.MUJER, Departamento.DIIC, areas[:1]) 
+
+    # Estudiantes
+    estudiante1 = Estudiante('Jorge Ballesta Cerezo', '49336768E', 'C/Aljufera, N12', Sexo.HOMBRE, [MLI, PCD,BDII])
+    estudiante2 = Estudiante('Nasim El Arifi Ahmed', '42436768M', 'C/Albatro, N13', Sexo.HOMBRE, [MLI, AEM, SYS,])
+
+    # Universidad
+    universidad = Universidad('UMU', 1,[MLI,PCD, AEM, BDII, SYS],[Departamento.DIIC, Departamento.DIS, Departamento.DITEC],areas)
+
+    # Contratacion de profesores asociados
+    
+    universidad.contratar_profesor_asociado(profesor_asociado1)
+    
+    universidad.contratar_profesor_asociado(profesor_asociado2)
+    
+    universidad.contratar_profesor_asociado(profesor_asociado6)
+
+    # Contratación de profesores titulares
+
+    universidad.contratar_profesor_titular(profesor_titular1)
+    
+    universidad.contratar_profesor_titular(profesor_titular2)
+
+    # Contratar investigadores
+    # Solo investigador
+    universidad.contratar_investigador(investigador1)
+    # Investigador + Profesor = Profesor Titular
+    universidad.contratar_investigador(profesor_titular1)
+    # Profesor Asociado (no deja)
+    #universidad.contratar_investigador(profesor_asociado1.nombre, profesor_asociado1.dni, profesor_asociado1.direccion, profesor_asociado1.sexo,
+    #                                   areas[0], profesor_asociado1.departamento) 
+    
+    # si contratamos un investigador y luego se convierte en profesor asociado, no saltara excepcion
+    
+    universidad.contratar_investigador(investigador2)
+    
+    profesor_asociado6 = ProfesorAsociado('Lucia Sanchez Carril', '53514321T', 'C/Despanto, N12', Sexo.MUJER, Departamento.DIIC, [SYS])
+
+    universidad.contratar_profesor_asociado(profesor_asociado6)
+
+    # Matricular estudiante
+    
+    universidad.matricular_estudiante(estudiante1)
+    universidad.matricular_estudiante(estudiante1)
+
+    universidad.matricular_estudiante(estudiante2)
+
+    # Asignar asignaturas profesor
+    universidad.asignar_profesor_asignatura(profesor_asociado1, MLI, SYS) 
+
+
+    # Imprimir datos
+    universidad.get_datos_universidad()
+    universidad.get_profesores()
+    universidad.get_investigadores()
+    universidad.get_alumnos()
+
+    # Asignaturas alumnos
+    universidad.asignaturas_alumno('49336768E')
+
+    # Definicion de asignaturas
+    universidad.definir_asignatura(6, "Optimizacion II", 6, Departamento.DIS)
+    print([asignatura.nombre for asignatura in universidad.asignaturas])
+
+    universidad.definir_asignatura(2, "Optimizacion II", 6, Departamento.DIS)
+
+    # Definicion de areas de investigacion
+
+    universidad.definir_areas_investigacion('Aprendizaje Reforzado')
+
+    # Cambiar departamento
+    print(profesor_asociado1.departamento)
+    universidad.cambio_departamento(profesor_asociado1, Departamento.DIS)
+    universidad.cambio_departamento(profesor_asociado1, Departamento.DIIC)
+    print(profesor_asociado1.departamento)
+#############################################################################################
+    # ELIMINACION
+    # Eliminar areas de investigacion
+    print(universidad.areas_investigacion)
+    universidad.eliminar_area_investigacion('Aprendizaje automático y análisis predictivo')
+    print(universidad.areas_investigacion)
+    # Eliminar Asignaturas
+    print([asignatura.nombre for asignatura in universidad.asignaturas])
+    universidad.eliminar_asignatura(MLI.id) # no se ha eliminado, ###NO DEJAR ELIMINAR UNA ASIGNATURA SI HAY PROFESOR QUE LA IMPARTEN O ALUMNOS QUE LA CURSAN
+    print([asignatura.nombre for asignatura in universidad.asignaturas])
+    universidad.eliminar_asignatura(MLI.nombre) 
+    universidad.eliminar_asignatura(1243) 
+    # Eliminar Profesores
+    universidad.despedir_profesor(profesor_asociado1.dni)
+    universidad.despedir_profesor(134324234) 
+    universidad.despedir_profesor('49834895E') 
+
+
+    # Eliminar investigadores
+    universidad.despedir_investigador(investigador2.dni)
+    universidad.despedir_investigador(134324234)
+    universidad.despedir_investigador('49834895E')
+
+    # Eliminar estudiantes
+    universidad.eliminar_estudiante(estudiante1.dni)
+    universidad.eliminar_estudiante(134324234)
+    universidad.eliminar_estudiante('49834895E')
+
+    # Eliminar asignatura para profesor
+    universidad.eliminar_profesor_asignatura(profesor_asociado2, AEM, BDII, PCD)
+    universidad.eliminar_profesor_asignatura('Pepe', MLI)
+    universidad.eliminar_profesor_asignatura(profesor_asociado2, 'Optimizacion II')
+
+    
+    # Eliminar asignaturas para alumno
+    universidad.desmatricular_asignaturas(estudiante1, BDII) # hay que implementaar un metodo que permita desmatricular en Estudiante
+
+
+    # agregar matricular de asignaturas a alumno
+
