@@ -21,8 +21,19 @@ class MiembroExists(Exception):
 class MiembroNotExists(Exception):
     pass
 
+# Estudiante
+
+
+# ProfesorAsociado
 class NotInvestigador(Exception):
     pass
+
+# Profesor Titular
+
+# Asignatura
+
+
+# Investigador
 
 class NotProfesor(Exception):
     pass
@@ -89,7 +100,6 @@ class MiembroDepartamento():
                     self.miembros[persona.departamento.value] = lista
                     print(f"{persona.nombre} ha sido eliminado del departamento {persona.departamento.value}")
                     return
-                raise MiembroNotExists(f"{persona.nombre} no es miembro del departamento {persona.departamento.name}")
         except Exception as e:
             print(f"Ocurrió un error al intentar eliminar a {persona.nombre}: {e}")
              
@@ -772,7 +782,6 @@ if __name__ == "__main__":
     universidad.cambio_departamento(profesor_asociado1, Departamento.DIS)
     universidad.cambio_departamento(profesor_asociado1, Departamento.DIIC)
     print(profesor_asociado1.departamento)
-    print(universidad.profesores)
 #############################################################################################
     # ELIMINACION
     # Eliminar areas de investigacion
@@ -812,8 +821,6 @@ if __name__ == "__main__":
 
 
     # agregar matricular de asignaturas a alumno
-
-
 
     del universidad
 
